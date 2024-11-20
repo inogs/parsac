@@ -50,6 +50,41 @@ class ChangeRestart(shared.Function):
                 print('Setting %s = %s (%i values, mean=%s)' % (name, self.expression, newvalues.size, numpy.mean(newvalues)))
                 ncvar[0, kstart:kstop, 0, 0] = newvalues
 
+class ChangeParameter(shared.Function):
+    def __init__(self, job, att):
+        shared.Function.__init__(self, job)
+        self.variable = att.get('variable', str)
+        self.expression = att.get('expression', str)
+
+    def apply(self):
+
+        # Check for existence of scenario directory
+        # (we need it now already to find start/stop of simulation)
+        self.scenariodir=self.job.scenariodir
+        if not os.path.isdir(self.scenariodir):
+            raise Exception('GOTM scenario directory "%s" does not exist.' % self.scenariodir)
+#       print('Setting %s = %s (%i values, mean=%s)' % (name, self.expression, newvalues.size, numpy.mean(newvalues)))
+        fabmyaml_path = os.path.join(self.scenariodir, 'fabm.yaml')
+        if not os.path.isfile(fabmyaml_path):
+            raise Exception('GOTM scenario directory "%s" does not exist.' % self.scenariodir)
+
+        m = self.getParameterMapping({'variable': 0.})
+        newvalues = eval(self.expression,{},m)
+        print(fabmyaml_path)
+
+        with io.open(fabmyaml_path, 'rU', encoding='utf-8') as f:
+             fabmyaml = yaml.safe_load(f)
+        string=self.variable
+#       string='instances/P1_11/parameters/p_arepr_rate'
+        entries= string.split('/') 
+        fabmyaml[entries[0]][entries[1]][entries[2]][entries[3]]=float(newvalues)
+
+        with io.open(fabmyaml_path, 'w', encoding='utf-8') as f:
+            yaml.dump(fabmyaml,f,default_flow_style=False)
+
+             
+
+
 class Job(program.Job):
 
     def __init__(self, job_id, xml_tree, root, **kwargs):
